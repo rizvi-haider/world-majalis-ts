@@ -1,0 +1,30 @@
+[
+  {
+    "id": "india",
+    "name": "India",
+    "cityName": "Mumbai",
+    "timeZone": "Asia/Kolkata",
+    "channels": [
+      { "id": "c1", "name": "ShiaIndia.com", "url": "https://youtube.com/@shiaindia" },
+      { "id": "c2", "name": "Channel WIN", "url": "https://youtube.com/@channelwintv" }
+    ]
+  },
+  {
+    "id": "usa",
+    "name": "USA",
+    "cityName": "New York",
+    "timeZone": "America/New_York",
+    "channels": [
+      { "id": "c3", "name": "USA Majalis Network", "url": "https://youtube.com/..." }
+    ]
+  },
+  {
+    "id": "uk",
+    "name": "UK",
+    "cityName": "London",
+    "timeZone": "Europe/London",
+    "channels": [
+      { "id": "c4", "name": "Zainabia TV", "url": "https://youtube.com/..." }
+    ]
+  }
+]
