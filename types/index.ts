@@ -1,7 +1,14 @@
-export interface Channel {
+export interface FetchedVideo {
   id: string;
+  title: string;
+  channelName: string;
+}
+
+export interface Channel {
   name: string;
-  url: string;
+  channelId: string;
+  liveStreams?: FetchedVideo[];
+  recordedVideos?: FetchedVideo[];
 }
 
 export interface CountryData {
