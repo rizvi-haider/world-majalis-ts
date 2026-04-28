@@ -149,11 +149,11 @@ function LiveStreamCard({ video }: { video: FetchedVideo }) {
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
           LIVE
         </div>
-        {video.viewerCount !== undefined && video.viewerCount > 0 && (
+        {/* {video.viewerCount !== undefined && video.viewerCount > 0 && (
           <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
             👁 {video.viewerCount.toLocaleString()}
           </div>
-        )}
+        )} */}
       </div>
       <div className="p-4">
         <h4 className="font-bold text-md leading-tight mb-1 truncate" title={video.title}>
