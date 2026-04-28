@@ -6,13 +6,40 @@
     "timeZone": "Asia/Kolkata",
     "channels": [
       {
-        "name": "Channel WIN", "channelId": "UCKWY9Mc_R3gnPurDECPbkJQ" 
+        "name": "Mumbai Azadari Official ",
+        "channelId": "UCWxRkIQWPILpNYwhEWS5eKQ"
       },
       {
-        "name": "Shia TV Network", "channelId": "UCzN_5KnBaqIJlv2QmW3ZOOA"
+        "name": "Mumbai Azadari Network",
+        "channelId": "UCV73TUM327i9oLfuUDUBq2g"
       },
       {
-        "name": "Brooklyn Nine-Nine", "channelId": "UCtRa82x1BwQdnpHf0Es4gcQ"
+        "name": "MAH-E-AZA",
+        "channelId": "UC-KO8NxVsgOS6Hv3iC65bZg"
+      },
+      {
+        "name": "Shia TV Network",
+        "channelId": "UCzN_5KnBaqIJlv2QmW3ZOOA"
+      },
+      {
+        "name": "Shia TV Chholas",
+        "channelId": "UCHUkWcRKLzDhoB7fVFVddxA"
+      },
+      {
+        "name": "ShiaIndia․com",
+        "channelId": "UCulx9Gd4Ml3oBHc-9jPKvAA"
+      },
+      {
+        "name": "LUCKNOW KI AZADARI",
+        "channelId": "UCrjhSMlfNzfzWEn6iuFeY2w"
+      },
+      {
+        "name": "Live Azadari Lucknow",
+        "channelId": "UCYmnSPv9kN67gGI1kui_5Uw"
+      },
+      {
+        "name": "HAIDARI CHANNEL LUCKNOW",
+        "channelId": "UCtPnZEiWnx09WGZ2huNx0Lw"
       }
     ]
   },
@@ -22,7 +49,30 @@
     "cityName": "New York",
     "timeZone": "America/New_York",
     "channels": [
-      { "name": "USA Majalis Network", "channelId": "UC4_o2uEvy-5zQ-tK0mXg6Mw" }
+      {
+        "name": "SHIA MAJALIS 313",
+        "channelId": "UCx2jyCd8IyDxovIYGwn7TEA"
+      },
+      {
+        "name": "Shia America",
+        "channelId": "UC7f3DWPQUdm1O_sYVfCUPJQ"
+      },
+      {
+        "name": "Al Asr Dearborn",
+        "channelId": "UCt7pKKda9RSkfVXRWDSEWuw"
+      },
+      {
+        "name": "Majlis Ummul Baneen",
+        "channelId": "UC-mnzJ0KHQUFNJt41PsNbOQ"
+      },
+      {
+        "name": "Imam Al-Khoei Foundation, NY",
+        "channelId": "UC9aYBYroj9pUzDtz7R-R_RA"
+      },
+      {
+        "name": "Official Shah-E-Najaf Islamic Center, New York",
+        "channelId": "UCCYbCJ2pmPJEnhFBxjAFAiw"
+      }
     ]
   },
   {
@@ -31,7 +81,22 @@
     "cityName": "London",
     "timeZone": "Europe/London",
     "channels": [
-      { "name": "Zainabia TV", "channelId": "UC4_o2uEvy-5zQ-tK0mXg6Mw" }
+      {
+        "name": "SHIA UK",
+        "channelId": "UCtVQ3MjbcsJwhvGucG32XCg"
+      },
+      {
+        "name": "AGHA UK",
+        "channelId": "UCfUe5pVzhRmy28ScYJp55Rg"
+      },
+      {
+        "name": "Imambargah Al-Hasan A",
+        "channelId": "UC2Wnv9iUroRRZiT7_MTiOPg"
+      },
+      {
+        "name": "Imam Al-Khoei Foundation, NY",
+        "channelId": "UC9aYBYroj9pUzDtz7R-R_RA"
+      }
     ]
   }
 ]

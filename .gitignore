@@ -36,6 +36,7 @@ yarn-error.log*
 *.bat
 *.py
 old_*
+channels_raw.json
 
 # vercel
 .vercel
