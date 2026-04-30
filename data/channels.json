@@ -6,6 +6,12 @@
     "timeZone": "Asia/Kolkata",
     "channels": [
       {
+        "name": "Channel WIN", "channelId": "UCKWY9Mc_R3gnPurDECPbkJQ" 
+      },
+      {
+        "name": "Shia TV Network", "channelId": "UCzN_5KnBaqIJlv2QmW3ZOOA"
+      },
+      {
         "name": "Mumbai Azadari Official ",
         "channelId": "UCWxRkIQWPILpNYwhEWS5eKQ"
       },
@@ -49,6 +55,7 @@
     "cityName": "New York",
     "timeZone": "America/New_York",
     "channels": [
+      { "name": "USA Majalis Network", "channelId": "UC4_o2uEvy-5zQ-tK0mXg6Mw" },
       {
         "name": "SHIA MAJALIS 313",
         "channelId": "UCx2jyCd8IyDxovIYGwn7TEA"
@@ -81,6 +88,7 @@
     "cityName": "London",
     "timeZone": "Europe/London",
     "channels": [
+      { "name": "Zainabia TV", "channelId": "UC4_o2uEvy-5zQ-tK0mXg6Mw" },
       {
         "name": "SHIA UK",
         "channelId": "UCtVQ3MjbcsJwhvGucG32XCg"
