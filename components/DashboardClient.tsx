@@ -59,11 +59,22 @@ export default function DashboardClient({ countries }: { countries: CountryData[
         {/* Content Area */}
         <div className="animate-fadeIn">
           {countries.map((country) => {
-            const allLiveStreams = [
+            // const allLiveStreams = [
+            //   ...country.channels.flatMap((ch) => ch.liveStreams || []),
+            //   ...(droppedStreams[country.id] || []),
+            // ];
+            // const allRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
+          
+            // 1. Fetch raw flattened arrays (including dropped streams)
+            const rawLiveStreams = [
               ...country.channels.flatMap((ch) => ch.liveStreams || []),
               ...(droppedStreams[country.id] || []),
             ];
-            const allRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
+            const rawRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
+
+            // 2. Deduplicate them based on the unique YouTube video 'id'
+            const allLiveStreams = Array.from(new Map(rawLiveStreams.map(v => [v.id, v])).values());
+            const allRecordedVideos = Array.from(new Map(rawRecordedVideos.map(v => [v.id, v])).values());
 
             return (
               <div
