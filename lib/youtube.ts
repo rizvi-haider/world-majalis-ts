@@ -20,13 +20,20 @@ const redis = new Redis({
 });
 
 /**
- * NEW: Reads the video data directly from the Upstash Redis cache.
- * This is what the frontend will call, costing 0 YouTube API quota.
+ * READ FROM CACHE: Pulls both live and recorded data from their respective Redis keys.
  */
 export async function getVideosFromCache(countryId: string): Promise<ChannelVideos> {
   try {
-    const cached = await redis.get<ChannelVideos>(`majalis:country:${countryId}`);
-    return cached || { liveStreams: [], recordedVideos: [] };
+    // Fetch both keys at the same time for maximum speed
+    const [liveStreams, recordedVideos] = await Promise.all([
+      redis.get<FetchedVideo[]>(`majalis:live:${countryId}`),
+      redis.get<FetchedVideo[]>(`majalis:recorded:${countryId}`)
+    ]);
+
+    return {
+      liveStreams: liveStreams || [],
+      recordedVideos: recordedVideos || []
+    };
   } catch (error) {
     console.error(`Redis cache read error for ${countryId}:`, error);
     return { liveStreams: [], recordedVideos: [] };
@@ -34,21 +41,18 @@ export async function getVideosFromCache(countryId: string): Promise<ChannelVide
 }
 
 /**
- * Fetch live streams AND recent recordings.
- * This should NOW ONLY BE CALLED BY THE CRON JOB, not the frontend.
+ * FETCH LIVE: Only checks for active live streams. (Runs every 5 mins)
  */
-export async function getVideosForChannels(channelIds: string[]): Promise<ChannelVideos> {
+export async function getLiveVideosForChannels(channelIds: string[]): Promise<FetchedVideo[]> {
   const API_KEY = process.env.YOUTUBE_API_KEY;
   if (!API_KEY) throw new Error("YouTube API Key is missing");
-  if (channelIds.length === 0) return { liveStreams: [], recordedVideos: [] };
+  if (channelIds.length === 0) return [];
 
   const allLiveStreams: FetchedVideo[] = [];
-  const allRecordedVideos: FetchedVideo[] = [];
 
   await Promise.all(
     channelIds.map(async (channelId) => {
       try {
-        // Live streams for this channel (Removed next.js revalidate tags)
         const liveRes = await fetch(
           `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`
         );
@@ -71,8 +75,28 @@ export async function getVideosForChannels(channelIds: string[]): Promise<Channe
             });
           });
         }
+      } catch (err) {
+        console.error(`Error fetching live channel ${channelId}:`, err);
+      }
+    })
+  );
 
-        // Recent recordings (3 most recent per channel)
+  return allLiveStreams;
+}
+
+/**
+ * FETCH RECORDED: Only pulls the 3 most recent recordings. (Runs every 1 hour)
+ */
+export async function getRecordedVideosForChannels(channelIds: string[]): Promise<FetchedVideo[]> {
+  const API_KEY = process.env.YOUTUBE_API_KEY;
+  if (!API_KEY) throw new Error("YouTube API Key is missing");
+  if (channelIds.length === 0) return [];
+
+  const allRecordedVideos: FetchedVideo[] = [];
+
+  await Promise.all(
+    channelIds.map(async (channelId) => {
+      try {
         const recentRes = await fetch(
           `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=3&key=${API_KEY}`
         );
@@ -87,12 +111,12 @@ export async function getVideosForChannels(channelIds: string[]): Promise<Channe
           });
         });
       } catch (err) {
-        console.error(`Error fetching channel ${channelId}:`, err);
+        console.error(`Error fetching recorded channel ${channelId}:`, err);
       }
     })
   );
 
-  return { liveStreams: allLiveStreams, recordedVideos: allRecordedVideos };
+  return allRecordedVideos;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
