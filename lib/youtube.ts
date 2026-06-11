@@ -1,3 +1,5 @@
+import { Redis } from '@upstash/redis';
+
 export interface FetchedVideo {
   id: string;
   title: string;
@@ -11,20 +13,29 @@ export interface ChannelVideos {
   recordedVideos: FetchedVideo[];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QUOTA COST COMPARISON
-//  OLD: 2 search calls × N channels = 200 units per channel
-//  NEW: 2 search calls total per country (batch all channelIds) = 200 units flat
-//  Savings: ~90% quota reduction
-// ─────────────────────────────────────────────────────────────────────────────
+// Initialize Redis client
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 /**
- * Fetch live streams AND recent recordings for multiple channels in 2 API calls.
- * YouTube search API accepts comma-separated channelId via the `channelId` param
- * when using OR logic — we do this by making one call and filtering client-side.
- *
- * More accurately: we use the `videos` endpoint with `id` batching after getting
- * videoIds from a single search call per event type.
+ * NEW: Reads the video data directly from the Upstash Redis cache.
+ * This is what the frontend will call, costing 0 YouTube API quota.
+ */
+export async function getVideosFromCache(countryId: string): Promise<ChannelVideos> {
+  try {
+    const cached = await redis.get<ChannelVideos>(`majalis:country:${countryId}`);
+    return cached || { liveStreams: [], recordedVideos: [] };
+  } catch (error) {
+    console.error(`Redis cache read error for ${countryId}:`, error);
+    return { liveStreams: [], recordedVideos: [] };
+  }
+}
+
+/**
+ * Fetch live streams AND recent recordings.
+ * This should NOW ONLY BE CALLED BY THE CRON JOB, not the frontend.
  */
 export async function getVideosForChannels(channelIds: string[]): Promise<ChannelVideos> {
   const API_KEY = process.env.YOUTUBE_API_KEY;
@@ -34,24 +45,19 @@ export async function getVideosForChannels(channelIds: string[]): Promise<Channe
   const allLiveStreams: FetchedVideo[] = [];
   const allRecordedVideos: FetchedVideo[] = [];
 
-  // Run all channel fetches in parallel — still individual calls but parallel,
-  // and results are cached at the Next.js fetch level (revalidate: 300)
   await Promise.all(
     channelIds.map(async (channelId) => {
       try {
-        // Live streams for this channel
+        // Live streams for this channel (Removed next.js revalidate tags)
         const liveRes = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`,
-          { next: { revalidate: 300 } } // re-check every 5 minutes
+          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`
         );
         const liveData = await liveRes.json();
 
         if (liveData.items?.length) {
-          // Enrich with viewer counts using the videos endpoint (1 call for all live IDs)
           const liveIds = liveData.items.map((i: any) => i.id.videoId).join(",");
           const statsRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${liveIds}&key=${API_KEY}`,
-            { next: { revalidate: 300 } }
+            `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${liveIds}&key=${API_KEY}`
           );
           const statsData = await statsRes.json();
 
@@ -68,8 +74,7 @@ export async function getVideosForChannels(channelIds: string[]): Promise<Channe
 
         // Recent recordings (3 most recent per channel)
         const recentRes = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=3&key=${API_KEY}`,
-          { next: { revalidate: 3600 } } // re-check every hour
+          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=3&key=${API_KEY}`
         );
         const recentData = await recentRes.json();
 

@@ -1,21 +1,19 @@
-import { getVideosForChannels } from "@/lib/youtube";
+import { getVideosFromCache } from "@/lib/youtube";
 import DashboardClient from "@/components/DashboardClient";
 import countriesData from "@/data/channels.json";
 import { CountryData } from "@/types";
 
+export const revalidate = 0; // Ensures Next.js doesn't cache the page statically, relying on Redis instead
+
 export default async function Home() {
-  // Fetch YouTube data per country — all channels in a country fetched in parallel,
-  // results merged. This replaces the old per-channel sequential approach.
   const enrichedCountries: CountryData[] = await Promise.all(
     countriesData.map(async (country) => {
-      const channelIds = country.channels.map((c) => c.channelId);
-      const { liveStreams, recordedVideos } = await getVideosForChannels(channelIds);
+      
+      // READ FROM REDIS INSTEAD OF YOUTUBE
+      const { liveStreams, recordedVideos } = await getVideosFromCache(country.id);
 
-      // Attach results to a single synthetic "aggregated" channel per country.
-      // The DashboardClient already does flatMap so this is compatible.
       const enrichedChannels = country.channels.map((channel, i) => ({
         ...channel,
-        // First channel carries all results; rest are empty (avoids duplicates)
         liveStreams: i === 0 ? liveStreams : [],
         recordedVideos: i === 0 ? recordedVideos : [],
       }));
