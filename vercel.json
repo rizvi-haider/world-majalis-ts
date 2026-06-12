@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/refresh-all",
-      "schedule": "0 0 * * *"
+      "path": "/api/cron/refresh-live",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/refresh-recorded",
+      "schedule": "0 * * * *"
     }
   ]
 }
