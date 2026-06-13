@@ -1,5 +1,9 @@
 import { Redis } from '@upstash/redis';
 
+const API_KEY = process.env.YOUTUBE_API_KEY!;
+const BASE = "https://www.googleapis.com/youtube/v3";
+const RECENT_PER_CHANNEL = 10;
+
 export interface FetchedVideo {
   id: string;
   title: string;
@@ -13,173 +17,106 @@ export interface ChannelVideos {
   recordedVideos: FetchedVideo[];
 }
 
-// Initialize Redis client
+type VideosListItem = {
+  id: string;
+  snippet: {
+    title: string;
+    channelId: string;
+    channelTitle: string;
+    publishedAt: string;
+    liveBroadcastContent: "live" | "upcoming" | "none";
+    thumbnails?: { medium?: { url: string } };
+  };
+  liveStreamingDetails?: {
+    concurrentViewers?: string;
+  };
+};
+
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-/**
- * READ FROM CACHE: Pulls both live and recorded data from their respective Redis keys.
- */
+const uploadsPlaylistId = (channelId: string) => "UU" + channelId.slice(2);
+
+async function ytFetch(endpoint: string, params: Record<string, string>) {
+  const url = new URL(`${BASE}/${endpoint}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  url.searchParams.set("key", API_KEY);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`YouTube ${endpoint} failed`);
+  return res.json();
+}
+
+async function getRecentVideoIds(channelId: string): Promise<string[]> {
+  try {
+    const data = await ytFetch("playlistItems", {
+      part: "contentDetails",
+      playlistId: uploadsPlaylistId(channelId),
+      maxResults: String(RECENT_PER_CHANNEL),
+    });
+    return (data.items ?? []).map((i: any) => i.contentDetails.videoId);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("404")) return [];
+    throw err;
+  }
+}
+
+async function getVideoDetails(videoIds: string[]): Promise<VideosListItem[]> {
+  const out: VideosListItem[] = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50);
+    const data = await ytFetch("videos", {
+      part: "snippet,liveStreamingDetails",
+      id: batch.join(","),
+      maxResults: "50",
+    });
+    out.push(...(data.items ?? []));
+  }
+  return out;
+}
+
+// Aligned back to your frontend shape!
+function toFetchedVideo(v: VideosListItem): FetchedVideo {
+  return {
+    id: v.id,
+    title: v.snippet.title,
+    channelName: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.medium?.url ?? "",
+    viewerCount: parseInt(v.liveStreamingDetails?.concurrentViewers || "0", 10),
+  };
+}
+
+async function getRecentVideosWithStatus(channelIds: string[]): Promise<VideosListItem[]> {
+  const idLists = await Promise.all(channelIds.map(getRecentVideoIds));
+  const allIds = [...new Set(idLists.flat())];
+  if (allIds.length === 0) return [];
+  return getVideoDetails(allIds);
+}
+
+// Single-pass master fetch for both Live and Recorded
+export async function getLiveAndRecordedForChannels(channelIds: string[]) {
+  const videos = await getRecentVideosWithStatus(channelIds);
+  return {
+    live: videos
+      .filter((v) => v.snippet.liveBroadcastContent === "live")
+      .map(toFetchedVideo),
+    recorded: videos
+      .filter((v) => v.snippet.liveBroadcastContent === "none")
+      .map(toFetchedVideo)
+      .sort((a, b) => b.id.localeCompare(a.id)) // temporary sort fallback
+  };
+}
+
+// Keep cache reader clean for page.tsx
 export async function getVideosFromCache(countryId: string): Promise<ChannelVideos> {
   try {
-    // Fetch both keys at the same time for maximum speed
     const [liveStreams, recordedVideos] = await Promise.all([
       redis.get<FetchedVideo[]>(`majalis:live:${countryId}`),
       redis.get<FetchedVideo[]>(`majalis:recorded:${countryId}`)
     ]);
-
-    return {
-      liveStreams: liveStreams || [],
-      recordedVideos: recordedVideos || []
-    };
+    return { liveStreams: liveStreams || [], recordedVideos: recordedVideos || [] };
   } catch (error) {
-    console.error(`Redis cache read error for ${countryId}:`, error);
     return { liveStreams: [], recordedVideos: [] };
-  }
-}
-
-/**
- * FETCH LIVE: Only checks for active live streams. (Runs every 5 mins)
- */
-export async function getLiveVideosForChannels(channelIds: string[]): Promise<FetchedVideo[]> {
-  const API_KEY = process.env.YOUTUBE_API_KEY;
-  if (!API_KEY) throw new Error("YouTube API Key is missing");
-  if (channelIds.length === 0) return [];
-
-  const allLiveStreams: FetchedVideo[] = [];
-
-  await Promise.all(
-    channelIds.map(async (channelId) => {
-      try {
-        const liveRes = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`
-        );
-        const liveData = await liveRes.json();
-
-        if (liveData.items?.length) {
-          const liveIds = liveData.items.map((i: any) => i.id.videoId).join(",");
-          const statsRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${liveIds}&key=${API_KEY}`
-          );
-          const statsData = await statsRes.json();
-
-          statsData.items?.forEach((item: any) => {
-            allLiveStreams.push({
-              id: item.id,
-              title: item.snippet.title,
-              channelName: item.snippet.channelTitle,
-              thumbnail: item.snippet.thumbnails?.medium?.url,
-              viewerCount: parseInt(item.liveStreamingDetails?.concurrentViewers || "0", 10),
-            });
-          });
-        }
-      } catch (err) {
-        console.error(`Error fetching live channel ${channelId}:`, err);
-      }
-    })
-  );
-
-  return allLiveStreams;
-}
-
-/**
- * FETCH RECORDED: Only pulls the 3 most recent recordings. (Runs every 1 hour)
- */
-export async function getRecordedVideosForChannels(channelIds: string[]): Promise<FetchedVideo[]> {
-  const API_KEY = process.env.YOUTUBE_API_KEY;
-  if (!API_KEY) throw new Error("YouTube API Key is missing");
-  if (channelIds.length === 0) return [];
-
-  const allRecordedVideos: FetchedVideo[] = [];
-
-  await Promise.all(
-    channelIds.map(async (channelId) => {
-      try {
-        const recentRes = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=3&key=${API_KEY}`
-        );
-        const recentData = await recentRes.json();
-
-        recentData.items?.forEach((item: any) => {
-          allRecordedVideos.push({
-            id: item.id.videoId,
-            title: item.snippet.title,
-            channelName: item.snippet.channelTitle,
-            thumbnail: item.snippet.thumbnails?.medium?.url,
-          });
-        });
-      } catch (err) {
-        console.error(`Error fetching recorded channel ${channelId}:`, err);
-      }
-    })
-  );
-
-  return allRecordedVideos;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Validate a user-submitted YouTube URL and check if it is currently live.
-// Returns null if invalid or not a YouTube link.
-// ─────────────────────────────────────────────────────────────────────────────
-export async function validateAndCheckLiveUrl(url: string): Promise<{
-  valid: boolean;
-  isLive: boolean;
-  videoId?: string;
-  title?: string;
-  channelName?: string;
-  thumbnail?: string;
-  error?: string;
-}> {
-  const API_KEY = process.env.YOUTUBE_API_KEY;
-  if (!API_KEY) return { valid: false, isLive: false, error: "Server configuration error" };
-
-  // Extract video ID from various YouTube URL formats
-  const videoId = extractYouTubeVideoId(url);
-  if (!videoId) {
-    return { valid: false, isLive: false, error: "Not a valid YouTube URL" };
-  }
-
-  try {
-    const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${API_KEY}`
-    );
-    const data = await res.json();
-
-    if (!data.items?.length) {
-      return { valid: false, isLive: false, error: "Video not found" };
-    }
-
-    const item = data.items[0];
-    const isLive = item.snippet?.liveBroadcastContent === "live";
-
-    return {
-      valid: true,
-      isLive,
-      videoId,
-      title: item.snippet?.title,
-      channelName: item.snippet?.channelTitle,
-      thumbnail: item.snippet?.thumbnails?.medium?.url,
-    };
-  } catch {
-    return { valid: false, isLive: false, error: "Failed to verify link" };
-  }
-}
-
-// Supports: youtu.be/ID, youtube.com/watch?v=ID, youtube.com/live/ID
-export function extractYouTubeVideoId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "youtu.be") return u.pathname.slice(1);
-    if (u.hostname.includes("youtube.com")) {
-      if (u.searchParams.get("v")) return u.searchParams.get("v");
-      const pathParts = u.pathname.split("/");
-      const liveIdx = pathParts.indexOf("live");
-      if (liveIdx !== -1) return pathParts[liveIdx + 1];
-    }
-    return null;
-  } catch {
-    return null;
   }
 }

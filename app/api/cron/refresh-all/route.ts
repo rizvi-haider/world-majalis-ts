@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { getLiveVideosForChannels, getRecordedVideosForChannels } from "@/lib/youtube";
+import { getLiveAndRecordedForChannels } from "@/lib/youtube";
 import countriesData from "@/data/channels.json";
 import { Redis } from '@upstash/redis';
+
+export const maxDuration = 300; // Vercel Pro timeout bypass
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -13,18 +15,17 @@ export async function GET(request: Request) {
     for (const country of countriesData) {
       const channelIds = country.channels.map(c => c.channelId);
       
-      // 1. Fetch both live and recorded data
-      const freshLive = await getLiveVideosForChannels(channelIds);
-      const freshRecorded = await getRecordedVideosForChannels(channelIds);
+      // Hit YouTube once using the ultra-cheap 1-unit endpoints!
+      const { live, recorded } = await getLiveAndRecordedForChannels(channelIds);
       
-      // 2. Save them to their respective Redis keys
-      await redis.set(`majalis:live:${country.id}`, freshLive);
-      await redis.set(`majalis:recorded:${country.id}`, freshRecorded);
+      // Save to both separate Redis drawers
+      await redis.set(`majalis:live:${country.id}`, live);
+      await redis.set(`majalis:recorded:${country.id}`, recorded);
     }
     
-    return NextResponse.json({ success: true, message: "Daily master cache refreshed" });
+    return NextResponse.json({ success: true, message: "Global Pro Cache updated flawlessly" });
   } catch (error) {
-    console.error("Master cron error:", error);
-    return NextResponse.json({ success: false, error: "Master cache failed" }, { status: 500 });
+    console.error("Cron Master Error:", error);
+    return NextResponse.json({ success: false, error: "Sync failed" }, { status: 500 });
   }
 }
