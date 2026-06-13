@@ -120,3 +120,40 @@ export async function getVideosFromCache(countryId: string): Promise<ChannelVide
     return { liveStreams: [], recordedVideos: [] };
   }
 }
+// ─── HELPER FUNCTIONS FOR USER SUBMISSIONS ─────────────────────────────
+
+export function extractYouTubeVideoId(url: string): string | null {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+export async function validateAndCheckLiveUrl(url: string) {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return { valid: false, error: "Invalid YouTube URL" };
+
+  try {
+    const API_KEY = process.env.YOUTUBE_API_KEY;
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${API_KEY}`
+    );
+    const data = await res.json();
+
+    if (!data.items?.length) return { valid: false, error: "Video not found or is private" };
+
+    const item = data.items[0];
+    const isLive = item.snippet.liveBroadcastContent === "live";
+
+    return {
+      valid: true,
+      isLive,
+      videoId,
+      title: item.snippet.title,
+      channelName: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails?.medium?.url ?? "",
+    };
+  } catch (err) {
+    console.error("Validation error:", err);
+    return { valid: false, error: "Failed to validate with YouTube" };
+  }
+}
