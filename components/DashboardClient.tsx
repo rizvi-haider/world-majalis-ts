@@ -68,7 +68,7 @@ export default function DashboardClient({ countries }: { countries: CountryData[
             // 1. Fetch raw flattened arrays (including dropped streams)
             const rawLiveStreams = [
               ...country.channels.flatMap((ch) => ch.liveStreams || []),
-              ...(droppedStreams[country.id] || []),
+              ...(showLinkDrop ? droppedStreams[country.id] || [] : []),
             ];
             const rawRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
 
@@ -140,7 +140,9 @@ export default function DashboardClient({ countries }: { countries: CountryData[
       </div>
 
       {/* Floating link-drop button + modal */}
-      <LinkDropModal countries={countries} onStreamAdded={handleStreamAdded} />
+      {showLinkDrop && (
+        <LinkDropModal countries={countries} onStreamAdded={handleStreamAdded} />
+      )}
     </div>
   );
 }
@@ -195,3 +197,5 @@ function RecordedVideoCard({ video }: { video: FetchedVideo }) {
     </div>
   );
 }
+
+const showLinkDrop = false; // preserve link-drop code, but keep it disabled
