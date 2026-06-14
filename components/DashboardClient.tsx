@@ -72,9 +72,10 @@ export default function DashboardClient({ countries }: { countries: CountryData[
             ];
             const rawRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
 
-            // 2. Deduplicate them based on the unique YouTube video 'id'
+            // 2. Deduplicate them based on the unique YouTube video 'id'.
             const allLiveStreams = Array.from(new Map(rawLiveStreams.map(v => [v.id, v])).values());
-            const allRecordedVideos = Array.from(new Map(rawRecordedVideos.map(v => [v.id, v])).values());
+            // Slice to maximum 10 recordings to prevent DOM bloat and browser freezing.
+            const allRecordedVideos = Array.from(new Map(rawRecordedVideos.map(v => [v.id, v])).values()).slice(0, 10);
 
             return (
               <div
