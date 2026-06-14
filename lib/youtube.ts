@@ -44,7 +44,12 @@ async function ytFetch(endpoint: string, params: Record<string, string>) {
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set("key", API_KEY);
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`YouTube ${endpoint} failed`);
+  
+  if (!res.ok) {
+    // Restored the detailed error text so we know exactly why YouTube is angry
+    const errText = await res.text();
+    throw new Error(`YouTube ${endpoint} failed (${res.status}): ${errText}`);
+  }
   return res.json();
 }
 
@@ -57,8 +62,12 @@ async function getRecentVideoIds(channelId: string): Promise<string[]> {
     });
     return (data.items ?? []).map((i: any) => i.contentDetails.videoId);
   } catch (err) {
-    if (err instanceof Error && err.message.includes("404")) return [];
-    throw err;
+    // CHANNEL-LEVEL ISOLATION
+    // If a channel is deleted (404), suspended (403), or broken, we catch it here.
+    // It prints a warning to your Vercel logs but returns an empty array `[]`
+    // so the rest of the country's channels can succeed!
+    console.warn(`⚠️ Skipping broken channel ${channelId}:`, err instanceof Error ? err.message : err);
+    return [];
   }
 }
 
