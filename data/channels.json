@@ -25,8 +25,6 @@
     "cityName": "Karachi",
     "timeZone": "Asia/Karachi",
     "channels": [
-      { "name": "Hyder TV", "channelId": "UCYZtow8CCE1bNJ-zojq9s3A" },
-      { "name": "Baab-e-Aza Majalis Network", "channelId": "UCPTiIIT7Fbuq7wFbCAVgiSA" },
       { "name": "Imambargah Darbar-e-Masumeen", "channelId": "UCiJzpLg7Qt309kNVMCuDELQ" },
       { "name": "Imam Bargah Aliyun Waliullah", "channelId": "UCuTmsCzL3SZrDflL1cBaF7A" },
       { "name": "Imambargah Col. Syed Mujtaba Hussain Jaffery", "channelId": "UCSyxwO12pUz3jXOC6R9sLCQ" },
@@ -55,9 +53,7 @@
     "cityName": "Toronto",
     "timeZone": "America/Toronto",
     "channels": [
-      { "name": "ISIJ of Toronto (Jaffari Community Centre)", "channelId": "UCj4JkCMMFThGgj2aV8yMvGA" },
       { "name": "Masumeen Islamic Centre, Brampton", "channelId": "UCMxfZR6dkqQYjpB1YOFknLg" },
-      { "name": "Al Mahdi Islamic Centre, Toronto", "channelId": "UCT_5SZoZWaJ451ZS5FtNqmg" },
       { "name": "Ahlul-Bayt Centre, Ottawa", "channelId": "UCLfW4TR1xrkf3oZUji8S9iw" },
       { "name": "ISIA Edmonton", "channelId": "UCNpCqIvalWZ5bi5zVgFiPEw" },
       { "name": "Al Zahra Learning Center, Calgary", "channelId": "UCHzanEtN5ClDFMw3HkSAi7Q" }
