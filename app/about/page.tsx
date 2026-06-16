@@ -4,7 +4,9 @@ export default function AboutPage() {
       <h1 className="text-3xl font-bold mb-6 border-b-2 border-gray-800 pb-2">About Us</h1>
       <p className="text-gray-700 text-lg">
         We have created an aggregated version of live and recorded Majalis over YouTube categorised by countries. This is a project currently in development by Aziz Rizvi (USA) and Haider Rizvi (India). It is live now for beta testing. Please use this and provide feedback on this. Select a country of your choice to view live and recorded majalises.
+      </p>
 
+      <p className="text-gray-700 text-lg">
         For Mobile devices scroll down from the clocks to the main videos section.
       </p>
 
