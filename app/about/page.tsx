@@ -12,7 +12,7 @@ export default function AboutPage() {
 
       <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold mb-6">In Loving Memory Of</h2>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
             <img src="/images/dad.jpg" alt="Naeem Rizvi" className="w-full h-64 object-cover"/>
             <div className="p-5">
