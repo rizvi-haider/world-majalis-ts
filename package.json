@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
     "next": "16.2.4",
+    "nodemailer": "^9.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
