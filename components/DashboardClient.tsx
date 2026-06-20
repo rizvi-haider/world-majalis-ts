@@ -5,6 +5,8 @@ import WorldClock from "@/components/WorldClock";
 import LinkDropModal from "@/components/LinkDropModal";
 import { CountryData, FetchedVideo } from "@/types";
 
+const showLinkDrop = false; // preserve link-drop code, but keep it disabled
+
 export default function DashboardClient({ countries }: { countries: CountryData[] }) {
   const [activeCountryId, setActiveCountryId] = useState<string>(countries[0]?.id);
   // Extra streams submitted via the link-drop modal, keyed by countryId
@@ -29,15 +31,17 @@ export default function DashboardClient({ countries }: { countries: CountryData[
   return (
     <div className="max-w-7xl mx-auto my-8 px-4">
       {/* Clocks Section */}
-      <div className="flex justify-center gap-8 md:gap-12 mb-12 flex-wrap">
-        {countries.map((country) => (
-          <WorldClock
-            key={country.id}
-            cityName={country.cityName}
-            timeZone={country.timeZone}
-            isActive={activeCountryId === country.id}
-          />
-        ))}
+      <div className="flex justify-center mb-12">
+        {countries
+          .filter((country) => country.id === activeCountryId)
+          .map((country) => (
+            <WorldClock
+              key={country.id}
+              cityName={country.cityName}
+              timeZone={country.timeZone}
+              isActive={true} 
+            />
+          ))}
       </div>
 
       {/* Main Content Block */}
@@ -58,29 +62,27 @@ export default function DashboardClient({ countries }: { countries: CountryData[
 
         {/* Content Area */}
         <div className="animate-fadeIn">
-          {countries.map((country) => {
-            // const allLiveStreams = [
-            //   ...country.channels.flatMap((ch) => ch.liveStreams || []),
-            //   ...(droppedStreams[country.id] || []),
-            // ];
-            // const allRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
+          {(() => {
+            // 1. Find the exact active country object
+            const country = countries.find((c) => c.id === activeCountryId) || countries[0];
+            if (!country) return null;
           
-            // 1. Fetch raw flattened arrays (including dropped streams)
+            // 2. Fetch raw flattened arrays (including dropped streams)
             const rawLiveStreams = [
               ...country.channels.flatMap((ch) => ch.liveStreams || []),
               ...(showLinkDrop ? droppedStreams[country.id] || [] : []),
             ];
             const rawRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
 
-            // 2. Deduplicate them based on the unique YouTube video 'id'.
+            // 3. Deduplicate them based on the unique YouTube video 'id'.
             const allLiveStreams = Array.from(new Map(rawLiveStreams.map(v => [v.id, v])).values());
-            // Slice to maximum 10 recordings to prevent DOM bloat and browser freezing.
+            // Slice to maximum 12 recordings to prevent DOM bloat and browser freezing.
             const allRecordedVideos = Array.from(new Map(rawRecordedVideos.map(v => [v.id, v])).values()).slice(0, 12);
 
             return (
               <div
                 key={country.id}
-                className={activeCountryId === country.id ? "block" : "hidden"}
+                className="block animate-fadeIn"
               >
                 <h2 className="text-3xl font-black mb-6 text-gray-800 uppercase tracking-wide">
                   {country.name} Broadcasting
@@ -135,7 +137,7 @@ export default function DashboardClient({ countries }: { countries: CountryData[
                 </div>
               </div>
             );
-          })}
+          })()}
         </div>
       </div>
 
@@ -149,26 +151,80 @@ export default function DashboardClient({ countries }: { countries: CountryData[
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// function LiveStreamCard({ video }: { video: FetchedVideo }) {
+//   return (
+//     <div className="rounded-lg overflow-hidden border bg-gray-50 shadow-sm flex flex-col">
+//       <div className="relative">
+//         <iframe
+//           className="w-full aspect-video"
+//           src={`https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1`}
+//           title={video.title}
+//           allowFullScreen
+//         />
+//         <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+//           <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+//           LIVE
+//         </div>
+//         {/* {video.viewerCount !== undefined && video.viewerCount > 0 && (
+//           <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+//             👁 {video.viewerCount.toLocaleString()}
+//           </div>
+//         )} */}
+//       </div>
+//       <div className="p-4">
+//         <h4 className="font-bold text-md leading-tight mb-1 truncate" title={video.title}>
+//           {video.title}
+//         </h4>
+//         <p className="text-sm text-gray-600 font-medium">{video.channelName}</p>
+//       </div>
+//     </div>
+//   );
+// }
+
 function LiveStreamCard({ video }: { video: FetchedVideo }) {
+  // Keep track of whether the user has clicked to load the live stream
+  const [isLoaded, setIsLoaded] = useState(false);
+
   return (
     <div className="rounded-lg overflow-hidden border bg-gray-50 shadow-sm flex flex-col">
-      <div className="relative">
-        <iframe
-          className="w-full aspect-video"
-          src={`https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1`}
-          title={video.title}
-          allowFullScreen
-        />
-        <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+      <div 
+        className="relative w-full aspect-video bg-black cursor-pointer group"
+        onClick={() => setIsLoaded(true)}
+      >
+        {isLoaded ? (
+          // The actual heavy live iframe ONLY loads if clicked
+          <iframe
+            className="w-full h-full"
+            src={`https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1`}
+            title={video.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          // The lightweight fake player thumbnail
+          <>
+            <img
+              src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+              alt={video.title}
+              className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+              loading="lazy"
+            />
+            {/* Fake YouTube Play Button */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-12 bg-black/80 group-hover:bg-red-600 transition-colors rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-white border-b-[10px] border-b-transparent ml-1" />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Floating LIVE Badge - Kept outside the condition so it always shows */}
+        <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded pointer-events-none shadow-md">
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
           LIVE
         </div>
-        {/* {video.viewerCount !== undefined && video.viewerCount > 0 && (
-          <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-            👁 {video.viewerCount.toLocaleString()}
-          </div>
-        )} */}
       </div>
+      
       <div className="p-4">
         <h4 className="font-bold text-md leading-tight mb-1 truncate" title={video.title}>
           {video.title}
@@ -179,15 +235,63 @@ function LiveStreamCard({ video }: { video: FetchedVideo }) {
   );
 }
 
+// function RecordedVideoCard({ video }: { video: FetchedVideo }) {
+//   return (
+//     <div className="rounded-lg overflow-hidden border bg-gray-50 shadow-sm flex flex-col">
+//       <iframe
+//         className="w-full aspect-video"
+//         src={`https://www.youtube.com/embed/${video.id}`}
+//         title={video.title}
+//         allowFullScreen
+//       />
+//       <div className="p-4">
+//         <h4 className="font-bold text-sm leading-tight mb-1 line-clamp-2" title={video.title}>
+//           {video.title}
+//         </h4>
+//         <p className="text-xs text-gray-600 font-medium">{video.channelName}</p>
+//       </div>
+//     </div>
+//   );
+// }
+
 function RecordedVideoCard({ video }: { video: FetchedVideo }) {
+  // Keep track of whether the user has clicked "Play"
+  const [isLoaded, setIsLoaded] = useState(false);
+
   return (
     <div className="rounded-lg overflow-hidden border bg-gray-50 shadow-sm flex flex-col">
-      <iframe
-        className="w-full aspect-video"
-        src={`https://www.youtube.com/embed/${video.id}`}
-        title={video.title}
-        allowFullScreen
-      />
+      <div 
+        className="relative w-full aspect-video bg-black cursor-pointer group"
+        onClick={() => setIsLoaded(true)}
+      >
+        {isLoaded ? (
+          // The actual heavy iframe ONLY loads if clicked
+          <iframe
+            className="w-full h-full"
+            src={`https://www.youtube.com/embed/${video.id}?autoplay=1`}
+            title={video.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          // The lightweight fake player
+          <>
+            <img
+              src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+              alt={video.title}
+              className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+              loading="lazy"
+            />
+            {/* Fake YouTube Play Button */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-12 bg-black/80 group-hover:bg-red-600 transition-colors rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-white border-b-[10px] border-b-transparent ml-1" />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+      
       <div className="p-4">
         <h4 className="font-bold text-sm leading-tight mb-1 line-clamp-2" title={video.title}>
           {video.title}
@@ -197,5 +301,3 @@ function RecordedVideoCard({ video }: { video: FetchedVideo }) {
     </div>
   );
 }
-
-const showLinkDrop = false; // preserve link-drop code, but keep it disabled
