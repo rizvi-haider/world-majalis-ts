@@ -92,13 +92,19 @@ export default function DashboardClient({ countries }: { countries: CountryData[
             };
 
             const allLiveStreams = uniqueLive.sort(sortByNewest);
-            // Increased slice slightly to allow for a better spread across separated channels
-            const allRecordedVideos = uniqueRecorded.sort(sortByNewest).slice(0, 20);
+            
+            // 4. SORT: Sort ALL unique recorded videos without prematurely slicing them
+            const allRecordedVideos = uniqueRecorded.sort(sortByNewest);
 
-            // 5. GROUPING: Separate recorded videos by Channel Name
+            // 5. GROUPING & LIMITING: Group by channelName, and cap at max 8 videos per channel
             const groupedRecordedVideos = allRecordedVideos.reduce((acc, video) => {
               if (!acc[video.channelName]) acc[video.channelName] = [];
-              acc[video.channelName].push(video);
+              
+              // Only push the video into the channel's array if it has less than 8 items
+              if (acc[video.channelName].length < 8) {
+                acc[video.channelName].push(video);
+              }
+              
               return acc;
             }, {} as Record<string, FetchedVideo[]>);
 

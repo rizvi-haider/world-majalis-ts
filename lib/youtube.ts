@@ -100,14 +100,33 @@ async function getRecentVideosWithStatus(channelIds: string[]): Promise<VideosLi
 }
 
 // Single-pass master fetch for both Live and Recorded
+// Single-pass master fetch for both Live and Recorded
 export async function getLiveAndRecordedForChannels(channelIds: string[]) {
   const videos = await getRecentVideosWithStatus(channelIds);
 
-  // THE BACKEND FILTER: Only keep videos with "majalis" in the title
-  const majalisVideos = videos.filter((v) =>
-    v.snippet.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis|moharram|muharram/i)
-  );
+  const majalisVideos: typeof videos = [];
+  const discardedVideos: { Channel: string; Title: string; VideoID: string }[] = [];
 
+  // Separate the videos based on the regex
+  videos.forEach((v) => {
+    if (v.snippet.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis/i)) {
+      majalisVideos.push(v);
+    } else {
+      discardedVideos.push({
+        Channel: v.snippet.channelTitle,
+        Title: v.snippet.title,
+        VideoID: v.id,
+      });
+    }
+  });
+
+  // Print a neatly formatted table to your terminal/Vercel logs
+  if (discardedVideos.length > 0) {
+    console.log(`\n🚫 SILENT AUDIT: Filtered out ${discardedVideos.length} videos`);
+    console.table(discardedVideos);
+  }
+
+  // Continue saving ONLY the majalis videos to the database
   return {
     live: majalisVideos
       .filter((v) => v.snippet.liveBroadcastContent === "live")
@@ -115,7 +134,6 @@ export async function getLiveAndRecordedForChannels(channelIds: string[]) {
     recorded: majalisVideos
       .filter((v) => v.snippet.liveBroadcastContent === "none")
       .map(toFetchedVideo)
-      // Sort by newest date immediately before saving to Redis
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()) 
   };
 }
