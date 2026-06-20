@@ -2,6 +2,7 @@ export interface FetchedVideo {
   id: string;
   title: string;
   channelName: string;
+  publishedAt: string;
 }
 
 export interface Channel {

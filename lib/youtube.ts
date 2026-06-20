@@ -8,6 +8,7 @@ export interface FetchedVideo {
   id: string;
   title: string;
   channelName: string;
+  publishedAt: string; // <-- Strongly typed timestamp requirement added!
   thumbnail?: string;
   viewerCount?: number;
 }
@@ -46,7 +47,6 @@ async function ytFetch(endpoint: string, params: Record<string, string>) {
   const res = await fetch(url, { cache: "no-store" });
   
   if (!res.ok) {
-    // Restored the detailed error text so we know exactly why YouTube is angry
     const errText = await res.text();
     throw new Error(`YouTube ${endpoint} failed (${res.status}): ${errText}`);
   }
@@ -62,10 +62,6 @@ async function getRecentVideoIds(channelId: string): Promise<string[]> {
     });
     return (data.items ?? []).map((i: any) => i.contentDetails.videoId);
   } catch (err) {
-    // CHANNEL-LEVEL ISOLATION
-    // If a channel is deleted (404), suspended (403), or broken, we catch it here.
-    // It prints a warning to your Vercel logs but returns an empty array `[]`
-    // so the rest of the country's channels can succeed!
     console.warn(`⚠️ Skipping broken channel ${channelId}:`, err instanceof Error ? err.message : err);
     return [];
   }
@@ -85,12 +81,12 @@ async function getVideoDetails(videoIds: string[]): Promise<VideosListItem[]> {
   return out;
 }
 
-// Aligned back to your frontend shape!
 function toFetchedVideo(v: VideosListItem): FetchedVideo {
   return {
     id: v.id,
     title: v.snippet.title,
     channelName: v.snippet.channelTitle,
+    publishedAt: v.snippet.publishedAt, // <-- Grabbing the timestamp for sorting
     thumbnail: v.snippet.thumbnails?.medium?.url ?? "",
     viewerCount: parseInt(v.liveStreamingDetails?.concurrentViewers || "0", 10),
   };
@@ -106,14 +102,21 @@ async function getRecentVideosWithStatus(channelIds: string[]): Promise<VideosLi
 // Single-pass master fetch for both Live and Recorded
 export async function getLiveAndRecordedForChannels(channelIds: string[]) {
   const videos = await getRecentVideosWithStatus(channelIds);
+
+  // THE BACKEND FILTER: Only keep videos with "majalis" in the title
+  const majalisVideos = videos.filter((v) =>
+    v.snippet.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis|moharram|muharram/i)
+  );
+
   return {
-    live: videos
+    live: majalisVideos
       .filter((v) => v.snippet.liveBroadcastContent === "live")
       .map(toFetchedVideo),
-    recorded: videos
+    recorded: majalisVideos
       .filter((v) => v.snippet.liveBroadcastContent === "none")
       .map(toFetchedVideo)
-      .sort((a, b) => b.id.localeCompare(a.id)) // temporary sort fallback
+      // Sort by newest date immediately before saving to Redis
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()) 
   };
 }
 
@@ -129,6 +132,7 @@ export async function getVideosFromCache(countryId: string): Promise<ChannelVide
     return { liveStreams: [], recordedVideos: [] };
   }
 }
+
 // ─── HELPER FUNCTIONS FOR USER SUBMISSIONS ─────────────────────────────
 
 export function extractYouTubeVideoId(url: string): string | null {
@@ -159,6 +163,7 @@ export async function validateAndCheckLiveUrl(url: string) {
       videoId,
       title: item.snippet.title,
       channelName: item.snippet.channelTitle,
+      publishedAt: item.snippet.publishedAt, // <-- Capture timestamp for manual drops too
       thumbnail: item.snippet.thumbnails?.medium?.url ?? "",
     };
   } catch (err) {
