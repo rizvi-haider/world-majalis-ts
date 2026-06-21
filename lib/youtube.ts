@@ -109,7 +109,7 @@ export async function getLiveAndRecordedForChannels(channelIds: string[]) {
 
   // Separate the videos based on the regex
   videos.forEach((v) => {
-    if (v.snippet.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis/i)) {
+    if (v.snippet.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis|moharram|muharram/i)) {
       majalisVideos.push(v);
     } else {
       discardedVideos.push({
