@@ -10,6 +10,9 @@ const showLinkDrop = false;
 export default function DashboardClient({ countries }: { countries: CountryData[] }) {
   const [activeCountryId, setActiveCountryId] = useState<string>(countries[0]?.id);
   const [droppedStreams, setDroppedStreams] = useState<Record<string, FetchedVideo[]>>({});
+  
+  // New state to track the dropdown selection for recorded videos
+  const [selectedRecordedChannel, setSelectedRecordedChannel] = useState<string>("");
 
   const handleStreamAdded = useCallback(async (countryId: string) => {
     try {
@@ -20,6 +23,7 @@ export default function DashboardClient({ countries }: { countries: CountryData[
         [countryId]: data.streams || [],
       }));
       setActiveCountryId(countryId);
+      setSelectedRecordedChannel(""); // Reset selection if they drop a new link
     } catch {
       // Silently fail
     }
@@ -49,7 +53,10 @@ export default function DashboardClient({ countries }: { countries: CountryData[
           {countries.map((country) => (
             <button
               key={country.id}
-              onClick={() => setActiveCountryId(country.id)}
+              onClick={() => {
+                setActiveCountryId(country.id);
+                setSelectedRecordedChannel(""); // Reset dropdown when changing countries
+              }}
               className={`tab-btn ${activeCountryId === country.id ? "active" : ""}`}
             >
               {country.name}
@@ -70,7 +77,6 @@ export default function DashboardClient({ countries }: { countries: CountryData[
             ];
             const rawRecordedVideos = country.channels.flatMap((ch) => ch.recordedVideos || []);
 
-            // 2. FILTER: Only keep videos with "majalis" in the title (case-insensitive)
             // 2. FILTER: Catch a massive net of spelling variations (case-insensitive)
             const isMajalis = (video: FetchedVideo) => 
               !!video.title.match(/majalis|majlis|majaalis|majales|majles|majaales|mejlis|moharram|muharram/i);
@@ -96,17 +102,14 @@ export default function DashboardClient({ countries }: { countries: CountryData[
             // 4. SORT: Sort ALL unique recorded videos without prematurely slicing them
             const allRecordedVideos = uniqueRecorded.sort(sortByNewest);
 
-            // 5. GROUPING & LIMITING: Group by channelName, and cap at max 8 videos per channel
+            // 5. GROUPING: Group by channelName and grab ALL videos!
             const groupedRecordedVideos = allRecordedVideos.reduce((acc, video) => {
               if (!acc[video.channelName]) acc[video.channelName] = [];
-              
-              // Only push the video into the channel's array if it has less than 8 items
-              if (acc[video.channelName].length < 8) {
-                acc[video.channelName].push(video);
-              }
-              
+              acc[video.channelName].push(video);
               return acc;
             }, {} as Record<string, FetchedVideo[]>);
+
+            const channelNames = Object.keys(groupedRecordedVideos);
 
             return (
               <div key={country.id} className="block animate-fadeIn">
@@ -148,28 +151,55 @@ export default function DashboardClient({ countries }: { countries: CountryData[
                     Recent Majalis Recordings
                   </h3>
 
-                  {Object.keys(groupedRecordedVideos).length === 0 ? (
+                  {channelNames.length === 0 ? (
                     <p className="text-gray-500 italic">No recent Majalis recordings available in {country.name}.</p>
                   ) : (
-                    <div className="flex flex-col gap-10">
-                      {Object.entries(groupedRecordedVideos).map(([channelName, videos]) => (
-                        <div key={channelName}>
-                          {/* Channel Header */}
+                    <div className="flex flex-col gap-6">
+                      
+                      {/* Dropdown Selector */}
+                      <div className="w-full max-w-xs bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label htmlFor="channel-select" className="block text-sm font-bold text-gray-700 mb-2">
+                          Channel
+                        </label>
+                        <select
+                          id="channel-select"
+                          value={selectedRecordedChannel}
+                          onChange={(e) => setSelectedRecordedChannel(e.target.value)}
+                          className="block w-full p-2.5 bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-800 focus:border-gray-800 outline-none"
+                        >
+                          <option value="" disabled>-- Select Channel --</option>
+                          {channelNames.map((name) => (
+                            <option key={name} value={name}>
+                              {name} ({groupedRecordedVideos[name].length})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Dynamic Video Grid Rendering */}
+                      {selectedRecordedChannel && groupedRecordedVideos[selectedRecordedChannel] ? (
+                        <div className="mt-4 animate-fadeIn">
                           <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
                             <div className="w-2 h-6 bg-gray-800 rounded-sm"></div>
                             <h4 className="font-bold text-lg text-gray-800">
-                              {channelName}
+                              {selectedRecordedChannel}
                             </h4>
                           </div>
                           
-                          {/* Channel Videos Grid */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {videos.map((video) => (
+                            {groupedRecordedVideos[selectedRecordedChannel].map((video) => (
                               <RecordedVideoCard key={`rec-${video.id}`} video={video} />
                             ))}
                           </div>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="text-center py-10 bg-gray-50 rounded-lg border border-dashed border-gray-300 mt-2">
+                          <p className="text-gray-500 font-medium">
+                            👆 Select a channel from the dropdown to load recordings.
+                          </p>
+                        </div>
+                      )}
+
                     </div>
                   )}
                 </div>

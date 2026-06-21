@@ -1,22 +1,9 @@
 import { Redis } from '@upstash/redis';
+import { FetchedVideo, ChannelVideos } from "@/types"; // (or whatever your types path is)
 
 const API_KEY = process.env.YOUTUBE_API_KEY!;
 const BASE = "https://www.googleapis.com/youtube/v3";
-const RECENT_PER_CHANNEL = 10;
-
-export interface FetchedVideo {
-  id: string;
-  title: string;
-  channelName: string;
-  publishedAt: string; // <-- Strongly typed timestamp requirement added!
-  thumbnail?: string;
-  viewerCount?: number;
-}
-
-export interface ChannelVideos {
-  liveStreams: FetchedVideo[];
-  recordedVideos: FetchedVideo[];
-}
+const RECENT_PER_CHANNEL = 50;
 
 type VideosListItem = {
   id: string;
